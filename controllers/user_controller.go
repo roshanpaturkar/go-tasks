@@ -12,7 +12,7 @@ import (
 	"github.com/roshanpaturkar/go-tasks/utils"
 )
 
-func CreateUser(c *fiber.Ctx) error {
+func UserSignUp(c *fiber.Ctx) error {
 	validate := validator.New()
 	signUp := new(models.SignUp)
 	c.BodyParser(&signUp)

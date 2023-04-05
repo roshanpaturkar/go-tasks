@@ -9,5 +9,5 @@ import (
 func UserRoutes(app *fiber.App) {
 	route := app.Group("/api/v1/user")
 
-	route.Post("/", controllers.CreateUser)
+	route.Post("/", controllers.UserSignUp)
 }
