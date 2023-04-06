@@ -10,4 +10,5 @@ func UserRoutes(app *fiber.App) {
 	route := app.Group("/api/v1/user")
 
 	route.Post("/", controllers.UserSignUp)
+	route.Post("/login", controllers.UserSignIn)
 }

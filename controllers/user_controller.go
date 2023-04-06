@@ -75,3 +75,60 @@ func UserSignUp(c *fiber.Ctx) error {
 		"msg":   "User created successfully",
 	})
 }
+
+func UserSignIn(c *fiber.Ctx) error {
+	validate := validator.New()
+	signIn := new(models.SignIn)
+	c.BodyParser(&signIn)
+
+	if err := validate.Struct(signIn); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	// Find the user
+	user := &models.User{}
+	db := database.MongoClient()
+
+	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"email": signIn.Email}).Decode(&user); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Incorrect email or password",
+		})
+	}
+
+	// Check if the password is correct
+	if match := utils.CheckPasswordHash(signIn.Password, user.PasswordHash); !match {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Incorrect email or password",
+		})
+	}
+
+	// Create a token
+	token, err := utils.GenerateNewToken(user.ID.Hex())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	// Save the token in the database
+	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": fiber.Map{"tokens": []string(append(user.Tokens, token.Access)), "updated_at": time.Now().Unix()}}); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"msg":   "User signed in successfully",
+		"tokens": fiber.Map{
+			"access": token.Access,
+		},
+	})
+}
