@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -130,5 +131,66 @@ func UserSignIn(c *fiber.Ctx) error {
 		"tokens": fiber.Map{
 			"access": token.Access,
 		},
+	})
+}
+
+func UserSignOut(c *fiber.Ctx) error {
+	user := &models.User{}
+	claims, err := utils.ExtractTokenMetadata(c)
+	if err != nil {
+		// Return status 500 and JWT parse error.
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	if claims.Expires < time.Now().Unix() {
+		// Return status 401 and JWT expired error.
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Token expired",
+		})
+	}
+
+	db := database.MongoClient()
+
+	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Invalid token",
+		})
+	}
+
+	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
+	tokens := user.Tokens
+	tokenExists := false
+
+	for i, token := range tokens {
+		if token == bearToken {
+			tokens = append(tokens[:i], tokens[i+1:]...)
+			tokenExists = true
+			break
+		}
+	}
+
+	if !tokenExists {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Token does not exist",
+		})
+	}
+
+	// Remove the token from the database
+	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": fiber.Map{"tokens": tokens, "updated_at": time.Now().Unix()}}); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"msg":   "User signed out successfully",
 	})
 }

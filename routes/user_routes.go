@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/roshanpaturkar/go-tasks/controllers"
+	"github.com/roshanpaturkar/go-tasks/middleware"
 )
 
 func UserRoutes(app *fiber.App) {
@@ -11,4 +12,5 @@ func UserRoutes(app *fiber.App) {
 
 	route.Post("/sign/up", controllers.UserSignUp)
 	route.Post("/sign/in", controllers.UserSignIn)
+	route.Get("/sign/out", middleware.Auth(), controllers.UserSignOut)
 }

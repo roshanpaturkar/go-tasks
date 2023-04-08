@@ -16,7 +16,8 @@ func GenerateNewToken(id string) (*Token, error) {
 	claims := jwt.MapClaims{}
 
 	claims["id"] = id
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+	claims["created"] = time.Now().Unix()
+	claims["expires"] = time.Now().Add(time.Hour * 72).Unix()
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
