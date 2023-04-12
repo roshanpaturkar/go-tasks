@@ -408,7 +408,7 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 		})
 	}
 
-	bucket, err := gridfs.NewBucket(db, options.GridFSBucket().SetName("avatars"))
+	bucket, err := gridfs.NewBucket(db, options.GridFSBucket().SetName(os.Getenv("AVATAR_BUCKET")))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": true,
@@ -418,7 +418,7 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 
 	var avatarMetadata bson.M
 
-	if err := db.Collection("avatars.files").FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err == nil {
+	if err := db.Collection(os.Getenv("AVATAR_COLLECTION")).FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err == nil {
 		// Delete existing avatar file
 		if err:= bucket.Delete(user.ID); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -450,7 +450,7 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 		})
 	}
 
-	log.Printf("Write file to DB was successful. File size: %d\n", fileSize)
+	log.Printf("Write file to DB was successful. File size: %d KB\n", fileSize/1024)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"error": false,
@@ -506,23 +506,16 @@ func GetUserAvatar(c *fiber.Ctx) error {
 
 	var avatarMetadata bson.M
 
-	if err := db.Collection("avatars.files").FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err != nil {
+	if err := db.Collection(os.Getenv("AVATAR_COLLECTION")).FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": true,
 			"msg":   "Avatar not found",
 		})
 	}
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	bucket, _ := gridfs.NewBucket( db, options.GridFSBucket().SetName(os.Getenv("AVATAR_BUCKET")))
 
-	bucket, _ := gridfs.NewBucket(
-		db,
-		options.GridFSBucket().SetName("avatars"),
-	)
 	var buffer bytes.Buffer
-	
 	bucket.DownloadToStream(user.ID, &buffer)
 
 	utils.SetAvatarHeaders(c, buffer, avatarMetadata["metadata"].(bson.M)["ext"].(string))
