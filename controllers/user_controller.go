@@ -376,6 +376,13 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 		})
 	}
 
+	if (fileHeader.Size) > 1024*1024 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg":   "File size too large, max 1MB allowed",
+		})
+	}
+
 	fileExtension := strings.ToLower(fileHeader.Filename[strings.LastIndex(fileHeader.Filename, "."):])
 
 	if fileExtension != ".jpg" && fileExtension != ".jpeg" && fileExtension != ".png" {
