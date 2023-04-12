@@ -1,12 +1,17 @@
 package controllers
 
 import (
+	"io"
+	"log"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/gridfs"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/roshanpaturkar/go-tasks/database"
 	"github.com/roshanpaturkar/go-tasks/models"
@@ -315,3 +320,133 @@ func UserProfile(c *fiber.Ctx) error {
 		},
 	})
 }
+
+func UploadUserAvatar(c *fiber.Ctx) error {
+	user := &models.User{}
+	claims, err := utils.ExtractTokenMetadata(c)
+	if err != nil {
+		// Return status 500 and JWT parse error.
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	if claims.Expires < time.Now().Unix() {
+		// Return status 401 and JWT expired error.
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Token expired",
+		})
+	}
+
+	db := database.MongoClient()
+
+	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Invalid token",
+		})
+	}
+
+	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
+	tokens := user.Tokens
+	tokenExists := false
+
+	for _, token := range tokens {
+		if token == bearToken {
+			tokenExists = true
+			break
+		}
+	}
+
+	if !tokenExists {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Token does not exist",
+		})
+	}
+
+	fileHeader, err := c.FormFile("avatar")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	fileExtension := strings.ToLower(fileHeader.Filename[strings.LastIndex(fileHeader.Filename, "."):])
+
+	if fileExtension != ".jpg" && fileExtension != ".jpeg" && fileExtension != ".png" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Invalid file type",
+		})
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	bucket, err := gridfs.NewBucket(db, options.GridFSBucket().SetName("avatars"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	var avatarMetadata bson.M
+
+	if err := db.Collection("avatars.files").FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err == nil {
+		// Delete existing avatar file
+		if err:= bucket.Delete(user.ID); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": true,
+				"msg":   err.Error(),
+			})
+		}
+	}
+
+	uploadStream, err := bucket.OpenUploadStream(fileHeader.Filename, options.GridFSUpload().SetMetadata(fiber.Map{
+		"user_id": user.ID,
+		"ext":     fileExtension,
+	}))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	uploadStream.FileID = user.ID
+	defer uploadStream.Close()
+
+	fileSize, err := uploadStream.Write(content)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	log.Printf("Write file to DB was successful. File size: %d\n", fileSize)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"msg":   "Avatar uploaded successfully",
+	})
+}
+

@@ -15,4 +15,5 @@ func UserRoutes(app *fiber.App) {
 	route.Get("/sign/out", middleware.Auth(), controllers.UserSignOut)
 	route.Get("/sign/out/all", middleware.Auth(), controllers.UserSignOutAll)
 	route.Get("/profile", middleware.Auth(), controllers.UserProfile)
+	route.Post("/avatar", middleware.Auth(), controllers.UploadUserAvatar)
 }
