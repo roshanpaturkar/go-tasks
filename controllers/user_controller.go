@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"os"
@@ -450,3 +451,74 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 	})
 }
 
+func GetUserAvatar(c *fiber.Ctx) error {
+	user := &models.User{}
+	claims, err := utils.ExtractTokenMetadata(c)
+	if err != nil {
+		// Return status 500 and JWT parse error.
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": true,
+			"msg":   err.Error(),
+		})
+	}
+
+	if claims.Expires < time.Now().Unix() {
+		// Return status 401 and JWT expired error.
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Token expired",
+		})
+	}
+
+	db := database.MongoClient()
+
+	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Invalid token",
+		})
+	}
+
+	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
+	tokens := user.Tokens
+	tokenExists := false
+
+	for _, token := range tokens {
+		if token == bearToken {
+			tokenExists = true
+			break
+		}
+	}
+
+	if !tokenExists {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Token does not exist",
+		})
+	}
+
+	var avatarMetadata bson.M
+
+	if err := db.Collection("avatars.files").FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Avatar not found",
+		})
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bucket, _ := gridfs.NewBucket(
+		db,
+		options.GridFSBucket().SetName("avatars"),
+	)
+	var buffer bytes.Buffer
+	
+	bucket.DownloadToStream(user.ID, &buffer)
+
+	utils.SetAvatarHeaders(c, buffer, avatarMetadata["metadata"].(bson.M)["ext"].(string))
+
+	return c.Send(buffer.Bytes())
+}
