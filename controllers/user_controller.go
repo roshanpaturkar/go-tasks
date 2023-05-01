@@ -317,6 +317,7 @@ func UserProfile(c *fiber.Ctx) error {
 			LastName:  user.LastName,
 			Email:     user.Email,
 			Mobile:   user.Mobile,
+			Avatar:   "/api/v1/user/avatar/" + user.ID.Hex(),
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 		},
