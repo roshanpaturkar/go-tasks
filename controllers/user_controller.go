@@ -11,6 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -517,6 +518,36 @@ func GetUserAvatar(c *fiber.Ctx) error {
 
 	var buffer bytes.Buffer
 	bucket.DownloadToStream(user.ID, &buffer)
+
+	utils.SetAvatarHeaders(c, buffer, avatarMetadata["metadata"].(bson.M)["ext"].(string))
+
+	return c.Send(buffer.Bytes())
+}
+
+func GetAvatarById(c *fiber.Ctx) error {
+	userID, err := primitive.ObjectIDFromHex(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Invalid user ID",
+		})
+	}
+
+	var avatarMetadata bson.M
+
+	db := database.MongoClient()
+
+	if err := db.Collection(os.Getenv("AVATAR_COLLECTION")).FindOne(c.Context(), fiber.Map{"metadata.user_id": userID}).Decode(&avatarMetadata); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": true,
+			"msg":   "Avatar not found",
+		})
+	}
+
+	bucket, _ := gridfs.NewBucket( db, options.GridFSBucket().SetName(os.Getenv("AVATAR_BUCKET")))
+
+	var buffer bytes.Buffer
+	bucket.DownloadToStream(userID, &buffer)
 
 	utils.SetAvatarHeaders(c, buffer, avatarMetadata["metadata"].(bson.M)["ext"].(string))
 
