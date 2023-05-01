@@ -142,50 +142,17 @@ func UserSignIn(c *fiber.Ctx) error {
 }
 
 func UserSignOut(c *fiber.Ctx) error {
-	user := &models.User{}
-	claims, err := utils.ExtractTokenMetadata(c)
-	if err != nil {
-		// Return status 500 and JWT parse error.
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
-		})
-	}
-
-	if claims.Expires < time.Now().Unix() {
-		// Return status 401 and JWT expired error.
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token expired",
-		})
-	}
-
+	user := c.Locals("user").(*models.User)
 	db := database.MongoClient()
-
-	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid token",
-		})
-	}
 
 	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
 	tokens := user.Tokens
-	tokenExists := false
 
 	for i, token := range tokens {
 		if token == bearToken {
 			tokens = append(tokens[:i], tokens[i+1:]...)
-			tokenExists = true
 			break
 		}
-	}
-
-	if !tokenExists {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token does not exist",
-		})
 	}
 
 	// Remove the token from the database
@@ -203,50 +170,8 @@ func UserSignOut(c *fiber.Ctx) error {
 }
 
 func UserSignOutAll(c *fiber.Ctx) error {
-	user := &models.User{}
-	claims, err := utils.ExtractTokenMetadata(c)
-	if err != nil {
-		// Return status 500 and JWT parse error.
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
-		})
-	}
-
-	if claims.Expires < time.Now().Unix() {
-		// Return status 401 and JWT expired error.
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token expired",
-		})
-	}
-
+	user := c.Locals("user").(*models.User)
 	db := database.MongoClient()
-
-	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid token",
-		})
-	}
-
-	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
-	tokens := user.Tokens
-	tokenExists := false
-
-	for _, token := range tokens {
-		if token == bearToken {
-			tokenExists = true
-			break
-		}
-	}
-
-	if !tokenExists {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token does not exist",
-		})
-	}
 
 	// Remove the token from the database
 	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": fiber.Map{"tokens": []string{}, "updated_at": time.Now().Unix()}}); err != nil {
@@ -263,50 +188,7 @@ func UserSignOutAll(c *fiber.Ctx) error {
 }
 
 func UserProfile(c *fiber.Ctx) error {
-	user := &models.User{}
-	claims, err := utils.ExtractTokenMetadata(c)
-	if err != nil {
-		// Return status 500 and JWT parse error.
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
-		})
-	}
-
-	if claims.Expires < time.Now().Unix() {
-		// Return status 401 and JWT expired error.
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token expired",
-		})
-	}
-
-	db := database.MongoClient()
-
-	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid token",
-		})
-	}
-
-	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
-	tokens := user.Tokens
-	tokenExists := false
-
-	for _, token := range tokens {
-		if token == bearToken {
-			tokenExists = true
-			break
-		}
-	}
-
-	if !tokenExists {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token does not exist",
-		})
-	}
+	user := c.Locals("user").(*models.User)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"error": false,
@@ -325,50 +207,8 @@ func UserProfile(c *fiber.Ctx) error {
 }
 
 func UploadUserAvatar(c *fiber.Ctx) error {
-	user := &models.User{}
-	claims, err := utils.ExtractTokenMetadata(c)
-	if err != nil {
-		// Return status 500 and JWT parse error.
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
-		})
-	}
-
-	if claims.Expires < time.Now().Unix() {
-		// Return status 401 and JWT expired error.
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token expired",
-		})
-	}
-
+	user := c.Locals("user").(*models.User)
 	db := database.MongoClient()
-
-	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid token",
-		})
-	}
-
-	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
-	tokens := user.Tokens
-	tokenExists := false
-
-	for _, token := range tokens {
-		if token == bearToken {
-			tokenExists = true
-			break
-		}
-	}
-
-	if !tokenExists {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token does not exist",
-		})
-	}
 
 	fileHeader, err := c.FormFile("avatar")
 	if err != nil {
@@ -461,50 +301,8 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 }
 
 func GetUserAvatar(c *fiber.Ctx) error {
-	user := &models.User{}
-	claims, err := utils.ExtractTokenMetadata(c)
-	if err != nil {
-		// Return status 500 and JWT parse error.
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
-		})
-	}
-
-	if claims.Expires < time.Now().Unix() {
-		// Return status 401 and JWT expired error.
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token expired",
-		})
-	}
-
+	user := c.Locals("user").(*models.User)
 	db := database.MongoClient()
-
-	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid token",
-		})
-	}
-
-	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
-	tokens := user.Tokens
-	tokenExists := false
-
-	for _, token := range tokens {
-		if token == bearToken {
-			tokenExists = true
-			break
-		}
-	}
-
-	if !tokenExists {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token does not exist",
-		})
-	}
 
 	var avatarMetadata bson.M
 
@@ -556,50 +354,8 @@ func GetAvatarById(c *fiber.Ctx) error {
 }
 
 func DeleteUserAvatar(c *fiber.Ctx) error {
-	user := &models.User{}
-	claims, err := utils.ExtractTokenMetadata(c)
-	if err != nil {
-		// Return status 500 and JWT parse error.
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
-		})
-	}
-
-	if claims.Expires < time.Now().Unix() {
-		// Return status 401 and JWT expired error.
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token expired",
-		})
-	}
-
+	user := c.Locals("user").(*models.User)
 	db := database.MongoClient()
-
-	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid token",
-		})
-	}
-
-	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
-	tokens := user.Tokens
-	tokenExists := false
-
-	for _, token := range tokens {
-		if token == bearToken {
-			tokenExists = true
-			break
-		}
-	}
-
-	if !tokenExists {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Token does not exist",
-		})
-	}
 
 	var avatarMetadata bson.M
 
