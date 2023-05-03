@@ -19,6 +19,7 @@ func main() {
 
 	// Routes
 	routes.UserRoutes(app)
+	routes.TaskRoutes(app)
 
 	app.Listen(":3000")
 }
