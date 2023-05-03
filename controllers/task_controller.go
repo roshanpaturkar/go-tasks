@@ -102,3 +102,47 @@ func GetTask(c *fiber.Ctx) error {
 		"task":  task,
 	})
 }
+
+func UpdateTask(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+	db := database.MongoClient()
+
+	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Bad Request",
+			"error":   true,
+		})
+	}
+
+	task := new(models.Task)
+	if err := c.BodyParser(task); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Bad Request",
+			"error":   true,
+		})
+	}
+
+	task.UpdatedAt = time.Now().Unix()
+
+	collection := db.Collection("tasks")
+	res, err := collection.UpdateOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}, bson.M{"$set": task})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+			"error":   true,
+		})
+	}
+
+	if res.MatchedCount == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Task not found",
+			"error":   true,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"message": "Task updated successfully",
+	})
+}
