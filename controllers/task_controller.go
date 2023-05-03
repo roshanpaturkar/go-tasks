@@ -4,8 +4,11 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson"
+
 	"github.com/roshanpaturkar/go-tasks/database"
 	"github.com/roshanpaturkar/go-tasks/models"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func CreateTask(c *fiber.Ctx) error {
@@ -39,5 +42,34 @@ func CreateTask(c *fiber.Ctx) error {
 		"error": false,
 		"message": "Task created successfully",
 		"task":    res.InsertedID,
+	})
+}
+
+func GetTasks(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+	db := database.MongoClient()
+
+	var tasks []models.Task
+
+	collection := db.Collection("tasks")
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	cursor, err := collection.Find(c.Context(), fiber.Map{"user_id": user.ID}, opts)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+			"error":   err.Error(),
+		})
+	}
+
+	if err := cursor.All(c.Context(), &tasks); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"tasks": tasks,
 	})
 }
