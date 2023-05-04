@@ -146,3 +146,37 @@ func UpdateTask(c *fiber.Ctx) error {
 		"message": "Task updated successfully",
 	})
 }
+
+func DeleteTask(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+	db := database.MongoClient()
+
+	id, err := primitive.ObjectIDFromHex(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Bad Request",
+			"error":   true,
+		})
+	}
+
+	collection := db.Collection("tasks")
+	res, err := collection.DeleteOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+			"error":   true,
+		})
+	}
+
+	if res.DeletedCount == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Task not found",
+			"error":   true,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"message": "Task deleted successfully",
+	})
+}

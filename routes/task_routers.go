@@ -14,4 +14,5 @@ func TaskRoutes(app *fiber.App) {
 	route.Get("/", middleware.Auth(), middleware.ValidateJwt(), controllers.GetTasks)
 	route.Get("/:id", middleware.Auth(), middleware.ValidateJwt(), controllers.GetTask)
 	route.Put("/:id", middleware.Auth(), middleware.ValidateJwt(), controllers.UpdateTask)
+	route.Delete("/:id", middleware.Auth(), middleware.ValidateJwt(), controllers.DeleteTask)
 }
