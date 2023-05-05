@@ -71,9 +71,25 @@ func GetTasks(c *fiber.Ctx) error {
 		})
 	}
 
+	jsonTasks, err := json.Marshal(tasks)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+			"error":   err.Error(),
+		})
+	}
+
+	var tasksResponse []models.GetTask
+	if err := json.Unmarshal([]byte(jsonTasks), &tasksResponse); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal Server Error",
+			"error":   err.Error(),
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"error": false,
-		"tasks": tasks,
+		"tasks": tasksResponse,
 	})
 }
 
@@ -101,7 +117,14 @@ func GetTask(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"error": false,
-		"task":  task,
+		"task":  models.GetTask{
+			ID:        task.ID.Hex(),
+			Title:     task.Title,
+			Completed: task.Completed,
+			Metadata:  task.Metadata,
+			CreatedAt: task.CreatedAt,
+			UpdatedAt: task.UpdatedAt,
+		},
 	})
 }
 
