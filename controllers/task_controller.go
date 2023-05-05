@@ -71,19 +71,15 @@ func GetTasks(c *fiber.Ctx) error {
 		})
 	}
 
-	jsonTasks, err := json.Marshal(tasks)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Internal Server Error",
-			"error":   err.Error(),
-		})
-	}
-
 	var tasksResponse []models.GetTask
-	if err := json.Unmarshal([]byte(jsonTasks), &tasksResponse); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Internal Server Error",
-			"error":   err.Error(),
+	for _, task := range tasks {
+		tasksResponse = append(tasksResponse, models.GetTask{
+			ID:        task.ID.Hex(),
+			Title:     task.Title,
+			Completed: task.Completed,
+			Metadata:  task.Metadata,
+			CreatedAt: task.CreatedAt,
+			UpdatedAt: task.UpdatedAt,
 		})
 	}
 
