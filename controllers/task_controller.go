@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/roshanpaturkar/go-tasks/database"
 	"github.com/roshanpaturkar/go-tasks/models"
+	"github.com/roshanpaturkar/go-tasks/utils"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -27,7 +29,7 @@ func CreateTask(c *fiber.Ctx) error {
 	timestamp := time.Now().Unix()
 
 	task.UserId = user.ID
-	task.CreatedAt = timestamp	
+	task.CreatedAt = timestamp
 	task.UpdatedAt = timestamp
 
 	collection := db.Collection("tasks")
@@ -40,7 +42,7 @@ func CreateTask(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"error": false,
+		"error":   false,
 		"message": "Task created successfully",
 		"task":    res.InsertedID,
 	})
@@ -106,6 +108,7 @@ func GetTask(c *fiber.Ctx) error {
 func UpdateTask(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 	db := database.MongoClient()
+	var taskUpdate map[string]interface{}
 
 	id, err := primitive.ObjectIDFromHex(c.Params("id"))
 	if err != nil {
@@ -115,18 +118,25 @@ func UpdateTask(c *fiber.Ctx) error {
 		})
 	}
 
-	task := new(models.Task)
-	if err := c.BodyParser(task); err != nil {
+	if err := json.Unmarshal(c.Body(), &taskUpdate); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Bad Request",
+			"message": err.Error(),
 			"error":   true,
 		})
 	}
 
-	task.UpdatedAt = time.Now().Unix()
-
+	task := new(models.Task)
 	collection := db.Collection("tasks")
-	res, err := collection.UpdateOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}, bson.M{"$set": task})
+	if err := collection.FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Task not found",
+			"error":   true,
+		})
+	}
+
+	parsedTaskUpdate := utils.UpdateTaskParser(taskUpdate, task.Metadata)
+
+	res, err := collection.UpdateOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}, bson.M{"$set": parsedTaskUpdate})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
@@ -176,7 +186,7 @@ func DeleteTask(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
+		"error":   false,
 		"message": "Task deleted successfully",
 	})
 }
