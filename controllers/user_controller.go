@@ -27,16 +27,16 @@ func UserSignUp(c *fiber.Ctx) error {
 
 	if err := validate.Struct(signUp); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	err.Error(),
 		})
 	}
 
 	passwdHash, err := utils.HashPassword(signUp.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":  err.Error(),
 		})
 	}
 
@@ -55,8 +55,8 @@ func UserSignUp(c *fiber.Ctx) error {
 	// Validate the user
 	if err := validate.Struct(user); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	err.Error(),
 		})
 	}
 
@@ -65,22 +65,22 @@ func UserSignUp(c *fiber.Ctx) error {
 	// Check if the user already exists
 	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"email": user.Email}).Decode(&user); err == nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-			"error": true,
-			"msg":   "User already exists",
+			"error":	true,
+			"message":	"User already exists",
 		})
 	}
 
 	// Insert the user
 	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).InsertOne(c.Context(), user); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"error": false,
-		"msg":   "User created successfully",
+		"error":	false,
+		"message":	"User created successfully",
 	})
 }
 
@@ -91,8 +91,8 @@ func UserSignIn(c *fiber.Ctx) error {
 
 	if err := validate.Struct(signIn); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	err.Error(),
 		})
 	}
 
@@ -102,16 +102,16 @@ func UserSignIn(c *fiber.Ctx) error {
 
 	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"email": signIn.Email}).Decode(&user); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Incorrect email or password",
+			"error":	true,
+			"message":	"Incorrect email or password",
 		})
 	}
 
 	// Check if the password is correct
 	if match := utils.CheckPasswordHash(signIn.Password, user.PasswordHash); !match {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Incorrect email or password",
+			"error":	true,
+			"message":	"Incorrect email or password",
 		})
 	}
 
@@ -119,23 +119,23 @@ func UserSignIn(c *fiber.Ctx) error {
 	token, err := utils.GenerateNewToken(user.ID.Hex())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	err.Error(),
 		})
 	}
 
 	// Save the token in the database
 	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": fiber.Map{"tokens": []string(append(user.Tokens, token.Access)), "updated_at": time.Now().Unix()}}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
-		"msg":   "User signed in successfully",
-		"tokens": fiber.Map{
+		"error":	false,
+		"message":	"User signed in successfully",
+		"tokens":	fiber.Map{
 			"access": token.Access,
 		},
 	})
@@ -158,14 +158,14 @@ func UserSignOut(c *fiber.Ctx) error {
 	// Remove the token from the database
 	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": fiber.Map{"tokens": tokens, "updated_at": time.Now().Unix()}}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
-		"msg":   "User signed out successfully",
+		"error":	false,
+		"message":	"User signed out successfully",
 	})
 }
 
@@ -176,14 +176,14 @@ func UserSignOutAll(c *fiber.Ctx) error {
 	// Remove the token from the database
 	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": fiber.Map{"tokens": []string{}, "updated_at": time.Now().Unix()}}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
-		"msg":   "User signed out successfully",
+		"error":	false,
+		"message":	"User signed out successfully",
 	})
 }
 
@@ -191,17 +191,17 @@ func UserProfile(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
-		"msg":   "User profile",
-		"user": models.UserProfileResponse{
-			ID:        user.ID.Hex(),
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Email:     user.Email,
-			Mobile:   user.Mobile,
-			Avatar:   "/api/v1/user/avatar/" + user.ID.Hex(),
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
+		"error":	false,
+		"message":	"User profile",
+		"user":		models.UserProfileResponse{
+			ID:			user.ID.Hex(),
+			FirstName:	user.FirstName,
+			LastName:	user.LastName,
+			Email:		user.Email,
+			Mobile:		user.Mobile,
+			Avatar:		"/api/v1/user/avatar/" + user.ID.Hex(),
+			CreatedAt:	user.CreatedAt,
+			UpdatedAt:	user.UpdatedAt,
 		},
 	})
 }
@@ -213,15 +213,15 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 	fileHeader, err := c.FormFile("avatar")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	err.Error(),
 		})
 	}
 
 	if (fileHeader.Size) > 1024*1024 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   "File size too large, max 1MB allowed",
+			"error":	true,
+			"message":	"File size too large, max 1MB allowed",
 		})
 	}
 
@@ -229,32 +229,32 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 
 	if fileExtension != ".jpg" && fileExtension != ".jpeg" && fileExtension != ".png" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid file type",
+			"error":	true,
+			"message":	"Invalid file type",
 		})
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
 	content, err := io.ReadAll(file)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
 	bucket, err := gridfs.NewBucket(db, options.GridFSBucket().SetName(os.Getenv("AVATAR_BUCKET")))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
@@ -264,8 +264,8 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 		// Delete existing avatar file
 		if err:= bucket.Delete(user.ID); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": true,
-				"msg":   err.Error(),
+				"error":	true,
+				"message":	"Internal server error",
 			})
 		}
 	}
@@ -276,8 +276,8 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 	}))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
@@ -287,16 +287,16 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 	fileSize, err := uploadStream.Write(content)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
 	log.Printf("Write file to DB was successful. File size: %d KB\n", fileSize/1024)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
-		"msg":   "Avatar uploaded successfully",
+		"error":	false,
+		"message":	"Avatar uploaded successfully",
 	})
 }
 
@@ -308,8 +308,8 @@ func GetUserAvatar(c *fiber.Ctx) error {
 
 	if err := db.Collection(os.Getenv("AVATAR_COLLECTION")).FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Avatar not found",
+			"error":	true,
+			"message":	"Avatar not found",
 		})
 	}
 
@@ -327,8 +327,8 @@ func GetAvatarById(c *fiber.Ctx) error {
 	userID, err := primitive.ObjectIDFromHex(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Invalid user ID",
+			"error":	true,
+			"message":	"Invalid user ID",
 		})
 	}
 
@@ -338,8 +338,8 @@ func GetAvatarById(c *fiber.Ctx) error {
 
 	if err := db.Collection(os.Getenv("AVATAR_COLLECTION")).FindOne(c.Context(), fiber.Map{"metadata.user_id": userID}).Decode(&avatarMetadata); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Avatar not found",
+			"error":	true,
+			"message":	"Avatar not found",
 		})
 	}
 
@@ -361,8 +361,8 @@ func DeleteUserAvatar(c *fiber.Ctx) error {
 
 	if err := db.Collection(os.Getenv("AVATAR_COLLECTION")).FindOne(c.Context(), fiber.Map{"metadata.user_id": user.ID}).Decode(&avatarMetadata); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": true,
-			"msg":   "Avatar not found",
+			"error":	true,
+			"message":	"Avatar not found",
 		})
 	}
 
@@ -370,13 +370,13 @@ func DeleteUserAvatar(c *fiber.Ctx) error {
 
 	if err := bucket.Delete(user.ID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"msg":   err.Error(),
+			"error":	true,
+			"message":	"Internal server error",
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
-		"msg":   "Avatar deleted successfully",
+		"error":	false,
+		"message":	"Avatar deleted successfully",
 	})
 }

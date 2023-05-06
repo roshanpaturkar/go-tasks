@@ -21,8 +21,8 @@ func CreateTask(c *fiber.Ctx) error {
 	task := new(models.Task)
 	if err := c.BodyParser(task); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Bad Request",
-			"error":   err.Error(),
+			"error":   true,
+			"message": err.Error(),
 		})
 	}
 
@@ -36,8 +36,8 @@ func CreateTask(c *fiber.Ctx) error {
 	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).InsertOne(c.Context(), task)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   true,
 			"message": "Internal Server Error",
-			"error":   err.Error(),
 		})
 	}
 
@@ -59,15 +59,15 @@ func GetTasks(c *fiber.Ctx) error {
 	cursor, err := db.Collection(os.Getenv("TASKS_COLLECTION")).Find(c.Context(), fiber.Map{"user_id": user.ID}, opts)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   true,
 			"message": "Internal Server Error",
-			"error":   err.Error(),
 		})
 	}
 
 	if err := cursor.All(c.Context(), &tasks); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   true,
 			"message": "Internal Server Error",
-			"error":   err.Error(),
 		})
 	}
 
@@ -95,8 +95,8 @@ func GetTask(c *fiber.Ctx) error {
 	id, err := primitive.ObjectIDFromHex(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Bad Request",
 			"error":   true,
+			"message": "Invalid task ID",
 		})
 	}
 
@@ -105,8 +105,8 @@ func GetTask(c *fiber.Ctx) error {
 	db := database.MongoClient()
 	if err := db.Collection(os.Getenv("TASKS_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Task not found",
 			"error":   true,
+			"message": "Task not found",
 		})
 	}
 
@@ -130,15 +130,15 @@ func UpdateTask(c *fiber.Ctx) error {
 	id, err := primitive.ObjectIDFromHex(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Bad Request",
 			"error":   true,
+			"message": "Invalid task ID",
 		})
 	}
 
 	if err := json.Unmarshal(c.Body(), &taskUpdate); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": err.Error(),
 			"error":   true,
+			"message": err.Error(),
 		})
 	}
 
@@ -147,8 +147,8 @@ func UpdateTask(c *fiber.Ctx) error {
 	db := database.MongoClient()
 	if err := db.Collection(os.Getenv("TASKS_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Task not found",
 			"error":   true,
+			"message": "Task not found",
 		})
 	}
 
@@ -157,20 +157,20 @@ func UpdateTask(c *fiber.Ctx) error {
 	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}, bson.M{"$set": parsedTaskUpdate})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Internal Server Error",
 			"error":   true,
+			"message": "Internal Server Error",
 		})
 	}
 
 	if res.MatchedCount == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Task not found",
 			"error":   true,
+			"message": "Task not found",
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"error": false,
+		"error":   false,
 		"message": "Task updated successfully",
 	})
 }
@@ -181,8 +181,8 @@ func DeleteTask(c *fiber.Ctx) error {
 	id, err := primitive.ObjectIDFromHex(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Bad Request",
 			"error":   true,
+			"message": "Invalid task ID",
 		})
 	}
 
@@ -190,15 +190,15 @@ func DeleteTask(c *fiber.Ctx) error {
 	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).DeleteOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Internal Server Error",
 			"error":   true,
+			"message": "Internal Server Error",
 		})
 	}
 
 	if res.DeletedCount == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Task not found",
 			"error":   true,
+			"message": "Task not found",
 		})
 	}
 
