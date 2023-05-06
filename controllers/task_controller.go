@@ -8,8 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/roshanpaturkar/go-tasks/database"
 	"github.com/roshanpaturkar/go-tasks/models"
 	"github.com/roshanpaturkar/go-tasks/utils"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -32,7 +32,7 @@ func CreateTask(c *fiber.Ctx) error {
 	task.CreatedAt = timestamp
 	task.UpdatedAt = timestamp
 
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).InsertOne(c.Context(), task)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -55,7 +55,7 @@ func GetTasks(c *fiber.Ctx) error {
 
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
 
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 	cursor, err := db.Collection(os.Getenv("TASKS_COLLECTION")).Find(c.Context(), fiber.Map{"user_id": user.ID}, opts)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -102,7 +102,7 @@ func GetTask(c *fiber.Ctx) error {
 
 	task := new(models.Task)
 
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 	if err := db.Collection(os.Getenv("TASKS_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error":   true,
@@ -144,7 +144,7 @@ func UpdateTask(c *fiber.Ctx) error {
 
 	task := new(models.Task)
 
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 	if err := db.Collection(os.Getenv("TASKS_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error":   true,
@@ -186,7 +186,7 @@ func DeleteTask(c *fiber.Ctx) error {
 		})
 	}
 
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).DeleteOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

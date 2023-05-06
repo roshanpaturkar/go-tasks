@@ -12,10 +12,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/roshanpaturkar/go-tasks/database"
 	"github.com/roshanpaturkar/go-tasks/models"
 	"github.com/roshanpaturkar/go-tasks/utils"
 )
@@ -60,7 +60,7 @@ func UserSignUp(c *fiber.Ctx) error {
 		})
 	}
 
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	// Check if the user already exists
 	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"email": user.Email}).Decode(&user); err == nil {
@@ -98,7 +98,7 @@ func UserSignIn(c *fiber.Ctx) error {
 
 	// Find the user
 	user := &models.User{}
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"email": signIn.Email}).Decode(&user); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -143,7 +143,7 @@ func UserSignIn(c *fiber.Ctx) error {
 
 func UserSignOut(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	bearToken := strings.Split(c.Get("Authorization"), " ")[1]
 	tokens := user.Tokens
@@ -171,7 +171,7 @@ func UserSignOut(c *fiber.Ctx) error {
 
 func UserSignOutAll(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	// Remove the token from the database
 	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": fiber.Map{"tokens": []string{}, "updated_at": time.Now().Unix()}}); err != nil {
@@ -208,7 +208,7 @@ func UserProfile(c *fiber.Ctx) error {
 
 func UploadUserAvatar(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	fileHeader, err := c.FormFile("avatar")
 	if err != nil {
@@ -302,7 +302,7 @@ func UploadUserAvatar(c *fiber.Ctx) error {
 
 func GetUserAvatar(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	var avatarMetadata bson.M
 
@@ -334,7 +334,7 @@ func GetAvatarById(c *fiber.Ctx) error {
 
 	var avatarMetadata bson.M
 
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	if err := db.Collection(os.Getenv("AVATAR_COLLECTION")).FindOne(c.Context(), fiber.Map{"metadata.user_id": userID}).Decode(&avatarMetadata); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -355,7 +355,7 @@ func GetAvatarById(c *fiber.Ctx) error {
 
 func DeleteUserAvatar(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
+	db := c.Locals("db").(*mongo.Database)
 
 	var avatarMetadata bson.M
 

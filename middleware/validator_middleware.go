@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/roshanpaturkar/go-tasks/database"
 	"github.com/roshanpaturkar/go-tasks/models"
 	"github.com/roshanpaturkar/go-tasks/utils"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func ValidateJwt() func(*fiber.Ctx) error {
@@ -32,7 +32,7 @@ func ValidateJwt() func(*fiber.Ctx) error {
 			})
 		}
 
-		db := database.MongoClient()
+		db := c.Locals("db").(*mongo.Database)
 
 		if err := db.Collection(os.Getenv("USER_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": claims.UserID}).Decode(&user); err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

@@ -4,6 +4,7 @@
         "godotenv",
         "gofiber",
         "gridfs",
+        "Ingester",
         "joho",
         "roshanpaturkar"
     ]
