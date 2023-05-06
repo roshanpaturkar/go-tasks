@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,7 +17,6 @@ import (
 
 func CreateTask(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
 
 	task := new(models.Task)
 	if err := c.BodyParser(task); err != nil {
@@ -32,8 +32,8 @@ func CreateTask(c *fiber.Ctx) error {
 	task.CreatedAt = timestamp
 	task.UpdatedAt = timestamp
 
-	collection := db.Collection("tasks")
-	res, err := collection.InsertOne(c.Context(), task)
+	db := database.MongoClient()
+	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).InsertOne(c.Context(), task)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
@@ -50,13 +50,13 @@ func CreateTask(c *fiber.Ctx) error {
 
 func GetTasks(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
 
 	var tasks []models.Task
 
-	collection := db.Collection("tasks")
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
-	cursor, err := collection.Find(c.Context(), fiber.Map{"user_id": user.ID}, opts)
+
+	db := database.MongoClient()
+	cursor, err := db.Collection(os.Getenv("TASKS_COLLECTION")).Find(c.Context(), fiber.Map{"user_id": user.ID}, opts)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
@@ -91,7 +91,6 @@ func GetTasks(c *fiber.Ctx) error {
 
 func GetTask(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
 
 	id, err := primitive.ObjectIDFromHex(c.Params("id"))
 	if err != nil {
@@ -103,8 +102,8 @@ func GetTask(c *fiber.Ctx) error {
 
 	task := new(models.Task)
 
-	collection := db.Collection("tasks")
-	if err := collection.FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
+	db := database.MongoClient()
+	if err := db.Collection(os.Getenv("TASKS_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "Task not found",
 			"error":   true,
@@ -126,7 +125,6 @@ func GetTask(c *fiber.Ctx) error {
 
 func UpdateTask(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
 	var taskUpdate map[string]interface{}
 
 	id, err := primitive.ObjectIDFromHex(c.Params("id"))
@@ -145,8 +143,9 @@ func UpdateTask(c *fiber.Ctx) error {
 	}
 
 	task := new(models.Task)
-	collection := db.Collection("tasks")
-	if err := collection.FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
+
+	db := database.MongoClient()
+	if err := db.Collection(os.Getenv("TASKS_COLLECTION")).FindOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}).Decode(&task); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "Task not found",
 			"error":   true,
@@ -155,7 +154,7 @@ func UpdateTask(c *fiber.Ctx) error {
 
 	parsedTaskUpdate := utils.UpdateTaskParser(taskUpdate, task.Metadata)
 
-	res, err := collection.UpdateOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}, bson.M{"$set": parsedTaskUpdate})
+	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID}, bson.M{"$set": parsedTaskUpdate})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
@@ -178,7 +177,6 @@ func UpdateTask(c *fiber.Ctx) error {
 
 func DeleteTask(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
-	db := database.MongoClient()
 
 	id, err := primitive.ObjectIDFromHex(c.Params("id"))
 	if err != nil {
@@ -188,8 +186,8 @@ func DeleteTask(c *fiber.Ctx) error {
 		})
 	}
 
-	collection := db.Collection("tasks")
-	res, err := collection.DeleteOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID})
+	db := database.MongoClient()
+	res, err := db.Collection(os.Getenv("TASKS_COLLECTION")).DeleteOne(c.Context(), fiber.Map{"_id": id, "user_id": user.ID})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Internal Server Error",
