@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -17,18 +18,31 @@ import (
 
 func CreateTask(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
+	validate := validator.New()
 
-	task := new(models.Task)
-	if err := c.BodyParser(task); err != nil {
+	createTask := new(models.CreateTask)
+	if err := c.BodyParser(&createTask); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   true,
 			"message": err.Error(),
 		})
 	}
 
+	if err := validate.Struct(createTask); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":	true,
+			"message":	err.Error(),
+		})
+	}
+
+	task := new(models.Task)
+
 	timestamp := time.Now().Unix()
 
 	task.UserId = user.ID
+	task.Title = createTask.Title
+	task.Completed = createTask.Completed
+	task.Metadata = createTask.Metadata
 	task.CreatedAt = timestamp
 	task.UpdatedAt = timestamp
 
