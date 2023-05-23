@@ -19,4 +19,5 @@ func UserRoutes(app *fiber.App) {
 	route.Get("/avatar", middleware.Auth(), middleware.ValidateJwt(), controllers.GetUserAvatar)
 	route.Get("/avatar/:id", controllers.GetAvatarById)
 	route.Delete("/avatar", middleware.Auth(), middleware.ValidateJwt(), controllers.DeleteUserAvatar)
+	route.Post("/change/password", middleware.Auth(), middleware.ValidateJwt(), controllers.ChangeUserPassword)
 }

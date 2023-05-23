@@ -380,3 +380,58 @@ func DeleteUserAvatar(c *fiber.Ctx) error {
 		"message":	"Avatar deleted successfully",
 	})
 }
+
+func ChangeUserPassword(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+	db := c.Locals("db").(*mongo.Database)
+	validate := validator.New()
+
+	userPasswords := new(models.ChangeUserPassword)
+
+	if err := c.BodyParser(&userPasswords); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":	true,
+			"message":	"Invalid request body",
+		})
+	}
+
+	// Validate the user
+	if err := validate.Struct(userPasswords); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":	true,
+			"message":	err.Error(),
+		})
+	}
+
+	// Check if the password is correct
+	if match := utils.CheckPasswordHash(userPasswords.OldPassword, user.PasswordHash); !match {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error":	true,
+			"message":	"Incorrect password",
+		})
+	}
+
+	// Hash the new password
+	passwdHash, err := utils.HashPassword(userPasswords.NewPassword)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":	true,
+			"message":  err.Error(),
+		})
+	}
+
+	user.PasswordHash = passwdHash
+	user.UpdatedAt = time.Now().Unix()
+
+	if _, err := db.Collection(os.Getenv("USER_COLLECTION")).UpdateOne(c.Context(), fiber.Map{"_id": user.ID}, fiber.Map{"$set": user}); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":	true,
+			"message":	"Internal server error",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error":	false,
+		"message":	"Password changed successfully",
+	})
+}
